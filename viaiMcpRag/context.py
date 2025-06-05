@@ -27,16 +27,6 @@ def truncate_to_token_limit(text: str, max_tokens: int = 30000, buffer: int = 50
     return text[:max_chars]
 
 async def generate_response_from_llm(input_text: str, query: str = "", custom_prompt: str = None, llm_provider: str = "groq") -> str:
-    # Check if the query is a greeting
-    greeting_patterns = [
-        r'^hi\b', r'^hello\b', r'^hey\b', r'^greetings\b',
-        r'^good\s+(morning|afternoon|evening)\b',
-        r'^howdy\b', r'^sup\b', r'^yo\b'
-    ]
-    
-    if any(re.search(pattern, query.lower()) for pattern in greeting_patterns):
-        return "Hello! I'm your AI assistant. How can I help you today?"
-
     base_prompt = custom_prompt or (
         "You are an expert query solver. If you cannot find any relevant information to answer the query, simply respond with 'No data found' without any explanation. "
         "Otherwise, provide a concise response in a short clear, informative paragraph. "
