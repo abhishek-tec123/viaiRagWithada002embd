@@ -317,4 +317,8 @@ async def query_documents(request: QueryRequest):
 
 @app.get("/")
 async def root():
+<<<<<<< HEAD
     return {"message": "Hello,"}
+=======
+    return {"message": "Hello,"}
+>>>>>>> 2d69c12cf97e884df8852d55815513c0ae4ca530
