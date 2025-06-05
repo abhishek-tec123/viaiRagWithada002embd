@@ -1,7 +1,7 @@
 langchain
-git+https://github.com/langchain-ai/langchain-groq.git
-git+https://github.com/langchain-ai/langchain-community.git
 langchain-openai
+langchain-groq
+langchain-community
 tiktoken
 beautifulsoup4
 lxml
