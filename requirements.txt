@@ -1,5 +1,5 @@
 langchain>=0.1.0
-langchain-groq>=0.0.5
+langchain-groq
 langchain-community>=0.0.5
 langchain-openai>=0.0.5
 tiktoken>=0.5.2
