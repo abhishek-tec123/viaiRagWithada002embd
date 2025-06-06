@@ -15,7 +15,8 @@ from vectorstore_utils import (
 from queryResponse import (
     download_and_save_vector_store_by_folder,
     pipeline_query_with_llm,
-    batch_process_queries
+    batch_process_queries,
+    VectorStoreError
 )
 import logging
 import tiktoken
@@ -318,7 +319,20 @@ async def query_documents(request: QueryRequest):
         
     except Exception as e:
         print(f"[Query Process] Error occurred: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, VectorStoreError):
+            return JSONResponse(
+                status_code=e.status_code,
+                content=e.to_dict()
+            )
+        # For any other unexpected errors
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": str(e),
+                "status_code": 500
+            }
+        )
 
 
 @app.get("/")
