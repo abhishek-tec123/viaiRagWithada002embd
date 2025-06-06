@@ -22,6 +22,9 @@ import tiktoken
 from embedding_model import initialize_model
 import asyncio
 from datetime import datetime, timedelta
+from typing import List, Optional
+import tempfile
+import base64
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +35,13 @@ app = FastAPI()
 # Global variable to track last cleanup time
 last_cleanup_time = None
 CLEANUP_INTERVAL = timedelta(hours=1)  # Run cleanup every hour
+
+class UploadRequest(BaseModel):
+    files: Optional[List[str]] = None  # Base64 encoded file contents
+    urls: Optional[List[str]] = None
+    user_id: str
+    folder_id: str
+    llm_provider: str = "openai"  # Default to openai
 
 async def periodic_cleanup():
     """Background task to periodically clean up old vector store files"""
@@ -76,15 +86,9 @@ def count_tokens(text: str) -> int:
 # Upload Endpoint
 # ============================
 @app.post("/upload/")
-async def upload_and_process(
-    files: list[UploadFile] = File(None),
-    urls: list[str] = Form(None),
-    user_id: str = Form(...),
-    folder_id: str = Form(...),
-    llm_provider: str = Form("openai")  # Default to openai
-):
-    print(f"\n[Upload Process] Starting upload process for user_id: {user_id}, folder_id: {folder_id}")
-    if not files and not urls:
+async def upload_and_process(request: UploadRequest):
+    print(f"\n[Upload Process] Starting upload process for user_id: {request.user_id}, folder_id: {request.folder_id}")
+    if not request.files and not request.urls:
         print("[Upload Process] Error: Neither files nor URLs provided")
         raise HTTPException(status_code=400, detail="Either files or URLs must be provided.") 
     try:
@@ -93,21 +97,23 @@ async def upload_and_process(
         source_names = []
 
         # Process files if provided
-        if files:
-            for file in files:
-                print(f"[Upload Process] Processing file: {file.filename}")
-                temp_path = file.filename
-                with open(temp_path, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
+        if request.files:
+            for file_content in request.files:
+                print(f"[Upload Process] Processing file content")
+                # Create a temporary file to process the content
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_file.write(base64.b64decode(file_content))
+                    temp_path = temp_file.name
+
                 text = uploader.load_file(temp_path)
                 os.remove(temp_path)
-                combined_text += f"\n\n=== Content from {file.filename} ===\n{text}"
-                source_names.append(file.filename)
-                print(f"[Upload Process] File processed successfully: {file.filename}")
+                combined_text += f"\n\n=== Content from uploaded file ===\n{text}"
+                source_names.append("uploaded_file")
+                print(f"[Upload Process] File processed successfully")
 
         # Process URLs if provided
-        if urls:
-            for url in urls:
+        if request.urls:
+            for url in request.urls:
                 print(f"[Upload Process] Processing URL: {url}")
                 text = uploader.extract_text_from_url(url)
                 source_name = os.path.basename(url)
@@ -131,7 +137,7 @@ async def upload_and_process(
         log.info(f"[Upload Process] Original vs Summary tokens: {original_tokens:,} → {summary_tokens:,} tokens")
 
         print("[Upload Process] Creating vector store")
-        builder = VectorStoreBuilder(file_name="combined_documents", folder_id=folder_id)
+        builder = VectorStoreBuilder(file_name="combined_documents", folder_id=request.folder_id)
         document = Document(page_content=summary, metadata={"source": ", ".join(source_names)})
         split_docs = builder.split_documents([document])
         print(f"[Upload Process] Documents split into {len(split_docs)} chunks")
@@ -148,8 +154,8 @@ async def upload_and_process(
         print("[Upload Process] Storing in MongoDB")
         mongo_id = store_in_mongodb(
             zip_data=zip_data,
-            user_id=user_id,
-            folder_id=folder_id,
+            user_id=request.user_id,
+            folder_id=request.folder_id,
             metadata={
                 "vectorstore_info": vectorstore_info,
                 "document_info": {
@@ -170,8 +176,8 @@ async def upload_and_process(
         return JSONResponse(content={
             "status": "success",
             "mongo_id": mongo_id,
-            "user_id": user_id,
-            "folder_id": folder_id,
+            "user_id": request.user_id,
+            "folder_id": request.folder_id,
             "vectorstore_info": vectorstore_info,
             "sources": source_names
         })
