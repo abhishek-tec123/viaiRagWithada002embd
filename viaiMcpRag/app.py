@@ -14,7 +14,6 @@ from vectorstore_utils import (
 )
 from queryResponse import (
     download_and_save_vector_store_by_folder,
-    load_vector_store,
     pipeline_query_with_llm,
     batch_process_queries
 )
@@ -82,7 +81,7 @@ async def upload_and_process(
     urls: list[str] = Form(None),
     user_id: str = Form(...),
     folder_id: str = Form(...),
-    llm_provider: str = Form("groq")  # Default to groq for backward compatibility
+    llm_provider: str = Form("openai")  # Default to openai
 ):
     print(f"\n[Upload Process] Starting upload process for user_id: {user_id}, folder_id: {folder_id}")
     if not files and not urls:
@@ -122,7 +121,7 @@ async def upload_and_process(
         
         # Summarize the combined text
         print(f"[Upload Process] Summarizing combined text")
-        summary = await summarize_extracted_text(combined_text, llm_provider=llm_provider)
+        summary = await summarize_extracted_text(combined_text, llm_provider="groq")
         print(f"[Upload Process] Summary: {summary}")
 
         # Log summary token count
